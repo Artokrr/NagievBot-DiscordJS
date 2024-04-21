@@ -1,5 +1,4 @@
 const { Client, Events, GatewayIntentBits, Partials, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder } = require('discord.js');
-const { createAudioPlayer, NoSubscriberBehavior } = require('@discordjs/voice');
 require('dotenv').config();
 
 const token = process.env.DISCORD_TOKEN;
@@ -14,12 +13,6 @@ const client = new Client({
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 })
-
-const player = createAudioPlayer({
-    behaviors: {
-        noSubscriber: NoSubscriberBehavior.Pause,
-    },
-});
 
 client.once(Events.ClientReady, c => {
     console.log(`Нагиев готов. Залогинен как: ${c.user.tag}`);
@@ -59,10 +52,6 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
                 .setLabel('Перейти к сообщению')
                 .setStyle(ButtonStyle.Link)
                 .setURL(pinMessageID.url);
-            /*  const deleteButton = new ButtonBuilder()
-                 .setCustomId('delete')
-                 .setLabel('Удалить закреп')
-                 .setStyle(ButtonStyle.Danger); */
 
             const row = new ActionRowBuilder().addComponents(redirectButton);
 
