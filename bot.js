@@ -39,7 +39,7 @@ const client = new Client({
         GatewayIntentBits.GuildVoiceStates,
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
-})
+});
 
 client.once(Events.ClientReady, async c => {
     console.log(`Нагиев готов. Залогинен как: ${c.user.tag}`);
@@ -57,7 +57,6 @@ client.once(Events.ClientReady, async c => {
             .then(webhook => console.log(`Вебхук создан: ${webhook.name}`))
             .catch(console.error);
     }
-
 });
 
 client.on(Events.MessageReactionAdd, async (reaction, user) => {
@@ -109,25 +108,8 @@ client.on(Events.MessageCreate, async message => {
     if (message.channel.id != CUSINI_CHANNEL_ID) return;
     if (message.author.bot) return;
 
-    // Insert recent messages into the database
-    const stmt = db.prepare("INSERT INTO messages (content) VALUES (?)");
-    stmt.run(message.content, (err) => {
-        if (err) {
-            return console.error('Error inserting message:', err.message);
-        }
-        console.log('Message saved:', message.content);
-    });
-    stmt.finalize();
-
     const contentLower = message.content.toLowerCase();
     const setChanceRegex = /^нагиев шанс (\d+)$/;
-    // const names = ['нагиев', 'дима', 'дмитрий', 'димка', 'димусь', 'дим', 'димасик'];
-    //
-    // if (names.some(n => contentLower.includes(n))) {
-    //     fetchRandomMessage(message);
-    //     return;
-    // }
-
 
     if (contentLower === 'сколько стоит любовь') {
         message.channel.send('двадцать восемь мультов');
@@ -155,14 +137,47 @@ client.on(Events.MessageCreate, async message => {
         }
     }
 
+    if (message.content.trim() !== '' || message.attachments.size > 0) {
+        let contentToSave = message.content;
+        if (contentToSave.trim() === '' && message.attachments.size > 0) {
+            contentToSave = `${[...message.attachments.values()].map(a => a.url).join(' ')}`;
+        }
+        
+        const stmt = db.prepare("INSERT INTO messages (content) VALUES (?)");
+        stmt.run(contentToSave, (err) => {
+            if (err) {
+                return console.error('Error inserting message:', err.message);
+            }
+            console.log('Message saved:', contentToSave);
+        });
+        stmt.finalize();
+    }
+    
     if (Math.random() < responseProbability) {
         fetchRandomMessage(message);
     }
 });
 
 const fetchRandomMessage = (message) => {
-    const randomId = Math.floor(Math.random() * 692100) + 1;
-    db.get("SELECT content FROM messages WHERE id = ? AND content IS NOT NULL AND content != ''", [randomId], (err, row) => {
+    db.get("SELECT MAX(id) as highestId FROM messages", (err, row) => {
+        if (err) {
+            console.error('Error fetching max id:', err.message);
+            return;
+        }
+
+        const currentHighestId = row.highestId || 0;
+        if (currentHighestId === 0) {
+            message.channel.send("No messages in the database yet.");
+            return;
+        }
+
+        const randomId = Math.floor(Math.random() * currentHighestId) + 1;
+        getRandomMessageById(message, randomId);
+    });
+};
+
+const getRandomMessageById = (message, id) => {
+    db.get("SELECT content FROM messages WHERE id = ? AND content IS NOT NULL AND content != ''", [id], (err, row) => {
         if (err) {
             console.error(err.message);
             return;
