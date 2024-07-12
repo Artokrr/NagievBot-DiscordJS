@@ -115,24 +115,47 @@ client.on(Events.MessageCreate, async message => {
         message.channel.send('двадцать восемь мультов');
         console.log(`${message.author.username} использовал сколько стоит любовь`);
         return;
-    } else if (contentLower === 'нагиев почаще') {
-        responseProbability = Math.min(responseProbability + 0.05, 1.0); // max 100%
-        message.channel.send(`=БАМ БАМ БАМ= chance =  ${Math.round(responseProbability * 100)}%`);
-        return;
-    } else if (contentLower === 'нагиев потише') {
-        responseProbability = Math.max(responseProbability - 0.05, 0.0); // min 0%
-        message.channel.send(`=ДЕДУ НАДО ВЫЙТИ= chance =  ${Math.round(responseProbability * 100)}%`);
-        return;
-    } else if (setChanceRegex.test(contentLower)) {
+    }
+
+    if (setChanceRegex.test(contentLower)) {
         const match = contentLower.match(setChanceRegex);
         const chance = parseInt(match[1], 10);
 
         if (chance >= 0 && chance <= 100) {
             responseProbability = chance / 100;
-            message.channel.send(`=ШАНС УСТАНОВЛЕН= chance = ${chance}%`);
+            try {
+                const botResponse = await message.channel.send(`=ШАНС УСТАНОВЛЕН= chance = ${chance}%`);
+
+                // Delete the user's message and the bot's response after a short delay
+                setTimeout(async () => {
+                    try {
+                        await message.delete();
+                        await message.channel.messages.delete(botResponse.id).catch(error => console.error('Error deleting bot response:', error));
+                    } catch (error) {
+                        console.error('Error deleting messages:', error);
+                    }
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error sending messages:', error);
+            }
             return;
         } else {
-            message.channel.send('Число должно быть между 0 и 100.');
+            try {
+                const botResponse = await message.channel.send('Число должно быть между 0 и 100.');
+
+                setTimeout(async () => {
+                    try {
+                        await message.delete();
+                        await message.channel.messages.delete(botResponse.id).catch(error => console.error('Error deleting bot response:', error));
+                    } catch (error) {
+                        console.error('Error deleting messages:', error);
+                    }
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error sending messages:', error);
+            }
             return;
         }
     }
@@ -142,7 +165,7 @@ client.on(Events.MessageCreate, async message => {
         if (contentToSave.trim() === '' && message.attachments.size > 0) {
             contentToSave = `${[...message.attachments.values()].map(a => a.url).join(' ')}`;
         }
-        
+
         const stmt = db.prepare("INSERT INTO messages (content) VALUES (?)");
         stmt.run(contentToSave, (err) => {
             if (err) {
@@ -152,7 +175,7 @@ client.on(Events.MessageCreate, async message => {
         });
         stmt.finalize();
     }
-    
+
     if (Math.random() < responseProbability) {
         fetchRandomMessage(message);
     }
